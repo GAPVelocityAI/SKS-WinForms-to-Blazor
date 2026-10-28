@@ -1,0 +1,36 @@
+@inherits LayoutComponentBase
+
+<div style="display:flex; flex-direction:column; height:100vh; overflow:hidden">
+
+    <!-- Content row: sidebar + body. The legacy frmMain has one menu and a status bar, nothing else;
+         every navigation target now lives in NavMenu, which mirrors that menu. -->
+    <div style="flex:1; display:flex; flex-direction:row; overflow:hidden">
+        @if (AppState.IsLoggedIn)
+        {
+        <div style="width:220px; flex-shrink:0; overflow-y:auto; border-right:1px solid #e0e0e0; background-color:#fafafa; display:flex; flex-direction:column;">
+            <!-- frmMain window caption -->
+            <div style="flex-shrink:0; height:30px; background-color:#1a237e; color:white; display:flex; align-items:center; padding:0 12px; font-size:13px; font-weight:500;">
+                Sales Agent
+            </div>
+            <NavMenu />
+        </div>
+        }
+        <div style="flex:1; overflow:auto; padding:8px;">
+            @Body
+        </div>
+    </div>
+
+    <!-- Status bar -->
+    <div style="flex-shrink:0; height:26px; background-color:#1a237e; color:white; display:flex; align-items:center; padding:0 8px; font-size:12px;">
+        <span>@AppState.StatusMessage</span>
+        <MudSpacer />
+        <span>@(string.IsNullOrEmpty(AppState.UserFullname) ? AppState.CurrentUser : AppState.UserFullname)</span>
+        <span style="margin-left:16px;">@AppState.CurrentCompany</span>
+        <span style="margin-left:16px;">@AppState.CurrentYear</span>
+    </div>
+</div>
+
+<MudThemeProvider Theme="_theme" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />

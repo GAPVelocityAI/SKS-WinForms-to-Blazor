@@ -1,0 +1,52 @@
+@using SKS_Blazor.Pages.About
+@inject IDialogService DialogService
+
+@*
+    Mirrors the frmMain menu exactly — same groups, same order, same captions.
+    Captions are the legacy ones even where they do not describe the target: "Create Invoice" opens
+    frmRequestApproval and "Add Stock to Inventory" opens frmReceptionApproval in the legacy app too.
+    Routes come from each mnu*_Click handler in frmMain.cs, not from the caption.
+    The one departure: mnuExit is not ported. A browser tab cannot close itself, and with no login
+    screen there is nothing to return to, so the item would have no meaning here.
+*@
+
+<MudNavMenu>
+    @* mnuFile: mnuCustomer, mnuProviders *@
+    <MudNavGroup Title="File" Icon="@Icons.Material.Filled.Folder" Expanded="true">
+        <MudNavLink Href="/upgraded/customers" Icon="@Icons.Material.Filled.People">Manage Customers</MudNavLink>
+        <MudNavLink Href="/upgraded/providers" Icon="@Icons.Material.Filled.LocalShipping">Manage Suppliers</MudNavLink>
+    </MudNavGroup>
+
+    @* mnuOrders: mnuCreateOrderRequest, mnuOrderRequestsApproval, separator, mnuCreateOrderReception, mnuOrderReceptionsApproval *@
+    <MudNavGroup Title="Orders" Icon="@Icons.Material.Filled.ShoppingCart" Expanded="true">
+        <MudNavLink Href="/upgraded/order-request" Icon="@Icons.Material.Filled.Assignment">Create Order</MudNavLink>
+        <MudNavLink Href="/upgraded/request-approval" Icon="@Icons.Material.Filled.CheckCircle">Create Invoice</MudNavLink>
+        <MudDivider Class="my-1" />
+        <MudNavLink Href="/upgraded/order-reception" Icon="@Icons.Material.Filled.AddShoppingCart">Add Stock Order</MudNavLink>
+        <MudNavLink Href="/upgraded/reception-approval" Icon="@Icons.Material.Filled.CheckCircle">Add Stock to Inventory</MudNavLink>
+    </MudNavGroup>
+
+    @* mnuMainInventory: mnuAddStockManually, mnuAdjustStockManually *@
+    <MudNavGroup Title="Inventory" Icon="@Icons.Material.Filled.Inventory" Expanded="true">
+        <MudNavLink Href="/upgraded/add-stock-manual" Icon="@Icons.Material.Filled.Add">Inventory Update</MudNavLink>
+        <MudNavLink Href="/upgraded/adjust-stock-manual" Icon="@Icons.Material.Filled.Tune">Inventory Adjust</MudNavLink>
+    </MudNavGroup>
+
+    @* mnuAccounts: mnuProducts, mnuSecurity *@
+    <MudNavGroup Title="Maintenance" Icon="@Icons.Material.Filled.Settings" Expanded="true">
+        <MudNavLink Href="/upgraded/products" Icon="@Icons.Material.Filled.Inventory2">Manage Products</MudNavLink>
+        <MudNavLink Href="/upgraded/users-manage" Icon="@Icons.Material.Filled.Group">Manage Users</MudNavLink>
+    </MudNavGroup>
+
+    @* mnuHelp: mnuAbout *@
+    <MudNavGroup Title="Help" Icon="@Icons.Material.Filled.HelpOutline" Expanded="true">
+        @* No Href, so MudNavLink renders a bare div; tabindex makes it keyboard-focusable. MudBlazor
+           strips a role attribute, so it stays a div to assistive tech. *@
+        <MudNavLink OnClick="@ShowAbout" Icon="@Icons.Material.Filled.Info" tabindex="0">About</MudNavLink>
+    </MudNavGroup>
+</MudNavMenu>
+
+@code {
+    /// <summary>Port of <c>mnuAbout_Click</c>.</summary>
+    private async Task ShowAbout() => await DialogService.ShowAsync<AboutDialog>("About");
+}

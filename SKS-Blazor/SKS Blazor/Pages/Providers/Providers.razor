@@ -1,0 +1,287 @@
+@page "/upgraded/providers"
+
+@using SKS_Blazor.Application.DTOs.Core
+@using SKS_Blazor.Application.DTOs.Providers
+@using SKS_Blazor.Application.DTOs.Search
+@using SKS_Blazor.Application.Services.Providers
+@using SKS_Blazor.Application.Services.Search
+@using SKS_Blazor.Application.Services.Functions
+@using SKS_Blazor.Infrastructure
+@using MudBlazor
+
+@*
+    Layout follows frmProviders Frame1 "Supplier information" (8,48 433x353):
+    Name (16,24) / Email (16,54) with the "Contact" frame (224,14) beside them, then Zip code (16,83),
+    City+Phone (16/232,114), State/Prov+Ext (16/232,145), Country+Fax (16/232,176), the Notes box
+    (16,216 401x52) and Payment Terms (16,288 401x52).
+    The legacy supplier form has no Address control, so the page does not render one.
+*@
+
+<PageTitle>Providers</PageTitle>
+
+<MudPaper Elevation="2" Class="pa-4" Style="height:100%; display:flex; flex-direction:column; overflow:hidden;">
+    <MudText Typo="Typo.h6" Class="mb-2">Suppliers</MudText>
+
+    @* Toolbar — legacy Toolbar1 with buttons: Add, Edit, Save, Delete, Search, Cancel *@
+    <MudToolBar Dense="true" Class="mb-2" Style="flex-shrink:0;">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" StartIcon="@Icons.Material.Filled.Add"
+                   OnClick="OnToolbarAdd" Disabled="_isLoading">Add</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Small" StartIcon="@Icons.Material.Filled.Edit"
+                   OnClick="OnToolbarEdit" Disabled="@(_isLoading || _currentProvider == null)">Edit</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small" StartIcon="@Icons.Material.Filled.Save"
+                   OnClick="OnToolbarSave" Disabled="@(_isLoading || !(_state?.EditMode == true || _state?.NewMode == true))">Save</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Error" Size="Size.Small" StartIcon="@Icons.Material.Filled.Delete"
+                   OnClick="OnToolbarDelete" Disabled="@(_isLoading || _currentProvider == null)">Delete</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Info" Size="Size.Small" StartIcon="@Icons.Material.Filled.Search"
+                   OnClick="OnToolbarSearch" Disabled="_isLoading">Search</MudButton>
+        <MudButton Variant="Variant.Outlined" Color="Color.Default" Size="Size.Small" StartIcon="@Icons.Material.Filled.Cancel"
+                   OnClick="OnToolbarCancel" Disabled="_isLoading">Cancel</MudButton>
+        <MudDivider Vertical="true" FlexItem="true" Class="mx-2" />
+        @* Not a legacy button: shows every record at once instead of the one-at-a-time navigator. *@
+        <MudButton Variant="Variant.Text" Size="Size.Small"
+                   StartIcon="@(_gridView ? Icons.Material.Filled.Description : Icons.Material.Filled.GridOn)"
+                   Color="@(_gridView ? Color.Primary : Color.Default)"
+                   OnClick="OnToggleGridView" Disabled="_isLoading">
+            @(_gridView ? "View as Form" : "View as Grid")
+        </MudButton>
+    </MudToolBar>
+
+    @if (_isLoading)
+    {
+        <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+    }
+
+    @if (!_gridView)
+    {
+        @* Record navigation bar — port of the dcProviders data control (8,408).
+           Hidden in grid view, where the grid is how you pick a record. *@
+        <div style="display:flex; align-items:center; gap:8px; flex-shrink:0; padding:4px 0;">
+            <MudIconButton Icon="@Icons.Material.Filled.FirstPage" Size="Size.Small"
+                           OnClick="OnFirstRecord" Disabled="@(_isLoading || _providersList.Count == 0)" />
+            <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" Size="Size.Small"
+                           OnClick="OnPreviousRecord" Disabled="@(_isLoading || CurrentIndex <= 0)" />
+            <MudText Typo="Typo.body2">
+                Record @(_providersList.Count > 0 ? (CurrentIndex + 1).ToString() : "0") of @_providersList.Count
+            </MudText>
+            <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small"
+                           OnClick="OnNextRecord" Disabled="@(_isLoading || CurrentIndex >= _providersList.Count - 1)" />
+            <MudIconButton Icon="@Icons.Material.Filled.LastPage" Size="Size.Small"
+                           OnClick="OnLastRecord" Disabled="@(_isLoading || _providersList.Count == 0)" />
+        </div>
+
+        <MudDivider Class="my-1" Style="flex:0 0 auto;" />
+    }
+
+    <div style="flex:1; overflow:auto; padding:4px 0;">
+        @if (_currentProvider != null)
+        {
+            <fieldset class="legacy-frame rec-form">
+                <legend>Supplier information</legend>
+
+                <div class="top-split">
+                    <div class="col-main">
+                        @* Label1 "Name" (16,24) + _txtField_0 (104,24,105) -> ProviderName *@
+                        <span class="lbl">Name</span>
+                        <MudTextField @bind-Value="_currentProvider.ProviderName" @bind-Value:after="OnTxtFieldChanged"
+                                      ReadOnly="@(!IsEditable)" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      Style="width:121px;" />
+
+                        @* Label11 "Email:" (16,54) + _txtField_2 -> EmailAddress *@
+                        <span class="lbl">Email:</span>
+                        <MudTextField @bind-Value="_currentProvider.EmailAddress" @bind-Value:after="OnTxtFieldChanged"
+                                      ReadOnly="@(!IsEditable)" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      Style="width:121px;" />
+
+                        @* Label15 "Zip code:" (16,83) + _txtField_4 -> PostalCode *@
+                        <span class="lbl">Zip code:</span>
+                        <MudTextField @bind-Value="_currentProvider.PostalCode" @bind-Value:after="OnTxtFieldChanged"
+                                      ReadOnly="@(!IsEditable)" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      Style="width:121px;" />
+                    </div>
+
+                    @* Frame2 "Contact" (224,14 194x97), nested top-right inside Frame1 *@
+                    <fieldset class="legacy-frame contact-frame">
+                        <legend>Contact</legend>
+
+                        <span class="lbl">Title:</span>
+                        <MudTextField @bind-Value="_currentProvider.ContactTitle" @bind-Value:after="OnTxtFieldChanged"
+                                      ReadOnly="@(!IsEditable)" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      Style="width:139px;" />
+
+                        <span class="lbl">First name:</span>
+                        <MudTextField @bind-Value="_currentProvider.ContactFirstName" @bind-Value:after="OnTxtFieldChanged"
+                                      ReadOnly="@(!IsEditable)" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      Style="width:139px;" />
+
+                        <span class="lbl">Last name:</span>
+                        <MudTextField @bind-Value="_currentProvider.ContactLastName" @bind-Value:after="OnTxtFieldChanged"
+                                      ReadOnly="@(!IsEditable)" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      Style="width:139px;" />
+                    </fieldset>
+                </div>
+
+                <div class="rows">
+                    @* Label6 "City:" (16,114) + Label8 "Phone" (232,115) *@
+                    <span class="lbl">City:</span>
+                    <MudTextField @bind-Value="_currentProvider.City" @bind-Value:after="OnTxtFieldChanged"
+                                  ReadOnly="@(!IsEditable)" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                  Style="width:121px;" />
+                    <span></span>
+                    <span class="lbl">Phone</span>
+                    <MudTextField @bind-Value="_currentProvider.PhoneNumber" @bind-Value:after="OnTxtFieldChanged"
+                                  ReadOnly="@(!IsEditable)" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                  Style="width:121px;" />
+
+                    @* Label13 "State/Prov" (16,145) + Label9 "Ext" (232,145) *@
+                    <span class="lbl">State/Prov</span>
+                    <MudTextField @bind-Value="_currentProvider.StateOrProvince" @bind-Value:after="OnTxtFieldChanged"
+                                  ReadOnly="@(!IsEditable)" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                  Style="width:121px;" />
+                    <span></span>
+                    <span class="lbl">Ext</span>
+                    <MudTextField @bind-Value="_currentProvider.Extension" @bind-Value:after="OnTxtFieldChanged"
+                                  ReadOnly="@(!IsEditable)" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                  Style="width:121px;" />
+
+                    @* Label14 "Country" (16,176) + Label10 "Fax" (232,176) *@
+                    <span class="lbl">Country</span>
+                    <MudTextField @bind-Value="_currentProvider.CountryRegion" @bind-Value:after="OnTxtFieldChanged"
+                                  ReadOnly="@(!IsEditable)" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                  Style="width:121px;" />
+                    <span></span>
+                    <span class="lbl">Fax</span>
+                    <MudTextField @bind-Value="_currentProvider.FaxNumber" @bind-Value:after="OnTxtFieldChanged"
+                                  ReadOnly="@(!IsEditable)" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                  Style="width:121px;" />
+                </div>
+
+                @* Label12 "Notes:" (16,200) + _txtField_14 (16,216 401x52) *@
+                <div class="notes">
+                    <span class="lbl">Notes:</span>
+                    <MudTextField @bind-Value="_currentProvider.Notes" @bind-Value:after="OnTxtFieldChanged"
+                                  Lines="3" ReadOnly="@(!IsEditable)" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                  Style="width:461px;" />
+                </div>
+
+                @* Label4 "Payment Terms:" (16,272) + _txtField_1 (16,288 401x52) *@
+                <div class="notes">
+                    <span class="lbl">Payment Terms:</span>
+                    <MudTextField @bind-Value="_currentProvider.PaymentTerms" @bind-Value:after="OnTxtFieldChanged"
+                                  Lines="3" ReadOnly="@(!IsEditable)" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                  Style="width:461px;" />
+                </div>
+            </fieldset>
+        }
+        else
+        {
+            <MudText Typo="Typo.body1" Color="Color.Secondary" Class="pa-4">
+                No supplier records found. Use Add to create a new supplier.
+            </MudText>
+        }
+
+        @if (_gridView)
+        {
+            @* Every record at once, below the Supplier information panel.
+               Clicking a row loads that record into the panel above. *@
+            <div class="mt-3">
+                <MudDataGrid T="ProvidersDto" Items="_providersList" Dense="true" Hover="true" Striped="true"
+                             FixedHeader="true" Filterable="false"
+                             SelectedItem="_selectedGridProvider"
+                             RowClick="OnGridRowClick"
+                             Loading="_isLoading">
+                    <Columns>
+                        <PropertyColumn Property="x => x.ProviderName" Title="Name" />
+                        <PropertyColumn Property="x => x.EmailAddress" Title="Email" />
+                        <PropertyColumn Property="x => x.ContactTitle" Title="Title" />
+                        <PropertyColumn Property="x => x.ContactFirstName" Title="First name" />
+                        <PropertyColumn Property="x => x.ContactLastName" Title="Last name" />
+                        <PropertyColumn Property="x => x.PostalCode" Title="Zip code" />
+                        <PropertyColumn Property="x => x.City" Title="City" />
+                        <PropertyColumn Property="x => x.PhoneNumber" Title="Phone" />
+                        <PropertyColumn Property="x => x.StateOrProvince" Title="State/Prov" />
+                        <PropertyColumn Property="x => x.Extension" Title="Ext" />
+                        <PropertyColumn Property="x => x.CountryRegion" Title="Country" />
+                        <PropertyColumn Property="x => x.FaxNumber" Title="Fax" />
+                        <PropertyColumn Property="x => x.PaymentTerms" Title="Payment Terms" />
+                    </Columns>
+                </MudDataGrid>
+            </div>
+        }
+    </div>
+</MudPaper>
+
+<style>
+    .rec-form.legacy-frame,
+    .contact-frame.legacy-frame {
+        border: 1px solid var(--mud-palette-lines-default);
+        border-radius: 4px;
+        min-width: 0;
+    }
+
+    .rec-form.legacy-frame {
+        padding: 4px 12px 12px;
+        margin: 0;
+        display: block;
+        width: fit-content;
+    }
+
+    .rec-form > legend,
+    .contact-frame > legend {
+        padding: 0 4px;
+        font-size: 0.8rem;
+        color: var(--mud-palette-text-secondary);
+    }
+
+    .rec-form .lbl {
+        font-size: 0.8125rem;
+        white-space: nowrap;
+    }
+
+    /* Name/Email/Zip on the left, the Contact frame beside them (legacy 224,14). */
+    .rec-form .top-split {
+        display: flex;
+        align-items: flex-start;
+        gap: 24px;
+    }
+
+    /* Legacy label gutter: labels at x=16, fields at x=104. */
+    .rec-form .col-main {
+        display: grid;
+        grid-template-columns: 104px auto;
+        align-items: center;
+        row-gap: 4px;
+    }
+
+    /* Two-column rows: label 16/field 104, then label 232/field 312. */
+    .rec-form .rows {
+        display: grid;
+        grid-template-columns: 104px 121px 27px 92px 121px;
+        align-items: center;
+        row-gap: 4px;
+        margin-top: 4px;
+    }
+
+    .contact-frame.legacy-frame {
+        padding: 4px 10px 10px;
+        margin: 0;
+        display: grid;
+        grid-template-columns: 92px auto;
+        align-items: center;
+        row-gap: 4px;
+    }
+
+    .rec-form .notes {
+        display: grid;
+        grid-template-columns: 104px auto;
+        align-items: start;
+        margin-top: 8px;
+    }
+
+    .rec-form .notes .lbl {
+        padding-top: 8px;
+    }
+
+    .mud-paper .mud-table-head th {
+        white-space: nowrap;
+    }
+</style>
